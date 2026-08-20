@@ -1,6 +1,6 @@
 {
   "name": "dsh-llm-as-verifier",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Provider-neutral trajectory verification, an LLM-as-verifier provider, and an observer bundle for DeepSeek Harness",
   "license": "MIT",
   "type": "module",
@@ -64,11 +64,6 @@
     "LICENSE",
     "NOTICE"
   ],
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    }
-  },
   "scripts": {
     "build": "pnpm run typecheck && tsdown",
     "typecheck": "tsc -p tsconfig.json",
