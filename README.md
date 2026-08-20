@@ -20,6 +20,6 @@ pnpm pack:check
 
 ## DeepSeek Harness integration
 
-Add `dsh-llm-as-verifier` to the profile dependencies, then point the rc.8 base composition rows `verifier`, `verifier-provider`, and `verifier-observer` to the package subpaths listed above. Do not add this package to the rc.8 profile bundle list: rc.8 rejects package-name replacement from a later bundle. The current Web settings and API integration remains documented under `integration/deepseek-harness/` while it is being reduced to a thin external-plugin adapter.
+Add `dsh-llm-as-verifier` to the profile dependencies, then point the rc.8 base composition rows `verifier`, `verifier-provider`, and `verifier-observer` to the package subpaths listed above. Do not add this package to the rc.8 profile bundle list: rc.8 rejects package-name replacement from a later bundle. The current Web settings and API adapter remains in the DSH fork and is being reduced to a thin external-plugin adapter.
 
 No credentials are stored in this repository. The provider resolves the configured DSH credential reference at call time.

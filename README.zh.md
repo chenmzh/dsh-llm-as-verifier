@@ -20,6 +20,6 @@ pnpm pack:check
 
 ## DeepSeek Harness 集成
 
-把 `dsh-llm-as-verifier` 加入 profile 依赖，再把 rc.8 base composition 中的 `verifier`、`verifier-provider` 和 `verifier-observer` 三行指向上面的包子路径。不要再把本包加入 rc.8 profile 的 bundle 列表，否则 rc.8 会拒绝后置的包名替换。当前 Web 设置页和 API 接线记录在 `integration/deepseek-harness/`，后续会继续缩减为外部插件适配层。
+把 `dsh-llm-as-verifier` 加入 profile 依赖，再把 rc.8 base composition 中的 `verifier`、`verifier-provider` 和 `verifier-observer` 三行指向上面的包子路径。不要再把本包加入 rc.8 profile 的 bundle 列表，否则 rc.8 会拒绝后置的包名替换。当前 Web 设置页和 API 适配层仍保留在 DSH fork 中，后续会继续缩减为外部插件适配层。
 
 仓库不保存任何凭据。provider 会在调用时通过 DSH credential reference 解析密钥。
