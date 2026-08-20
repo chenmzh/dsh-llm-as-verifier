@@ -1,0 +1,35 @@
+# Optional patch for `dsh --profile headless --patch`.
+- insert:
+    - id: verifier
+      name: 'dsh-llm-as-verifier/core'
+    - id: verifier-provider
+      name: 'dsh-llm-as-verifier/provider'
+      config:
+        model: deepseek-v4-flash
+        baseURL: https://api.deepseek.com
+        apiKeyEnv: DEEPSEEK_API_KEY
+        transport: auto
+        criteria:
+          Overall: Is this trajectory correct, complete, and adequately verified?
+        nEvaluations: 1
+        pivots: 2
+        maxWorkers: 4
+        reasoningEffort: high
+        strict: true
+        adaptive:
+          enabled: false
+        budget:
+          maxCalls: 32
+          maxLatencyMs: 45000
+          maxCallsPerOperation: 64
+        progressTracking:
+          enabled: false
+    - id: verifier-observer
+      name: 'dsh-llm-as-verifier/observer'
+      config:
+        evaluationLogging:
+          enabled: false
+          path: .verifier-runs
+          adaptiveShadow:
+            enabled: true
+            top2GapThreshold: 0.08

@@ -1,0 +1,117 @@
+{
+  "name": "dsh-llm-as-verifier",
+  "version": "0.1.0",
+  "description": "Provider-neutral trajectory verification, an LLM-as-verifier provider, and an observer bundle for DeepSeek Harness",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chenmzh/dsh-llm-as-verifier.git"
+  },
+  "homepage": "https://github.com/chenmzh/dsh-llm-as-verifier#readme",
+  "bugs": {
+    "url": "https://github.com/chenmzh/dsh-llm-as-verifier/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "main": "lib/provider.js",
+  "types": "lib/provider.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/provider.d.ts",
+      "default": "./lib/provider.js"
+    },
+    "./core": {
+      "types": "./lib/core.d.ts",
+      "default": "./lib/core.js"
+    },
+    "./provider": {
+      "types": "./lib/provider.d.ts",
+      "default": "./lib/provider.js"
+    },
+    "./observer": {
+      "types": "./lib/observer.d.ts",
+      "default": "./lib/observer.js"
+    },
+    "./core/invariant": {
+      "types": "./lib/core-invariant.d.ts",
+      "default": "./lib/core-invariant.js"
+    },
+    "./provider/invariant": {
+      "types": "./lib/provider-invariant.d.ts",
+      "default": "./lib/provider-invariant.js"
+    },
+    "./observer/invariant": {
+      "types": "./lib/observer-invariant.d.ts",
+      "default": "./lib/observer-invariant.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./worker.py": "./worker.py",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "worker.py",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run typecheck && tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "pack:check": "pnpm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm --config.minimum-release-age=0 run check"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-brand": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-credentials": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-launch-environment": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-subprocess": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-timeout": "^0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-brand": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-credentials": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-invariants": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-launch-environment": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-session": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-subprocess": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-timeout": "0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
+  },
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": ""
+}

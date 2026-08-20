@@ -1,0 +1,7 @@
+dsh-llm-as-verifier
+
+The initial verifier implementation was developed as part of a local DeepSeek
+Harness rc.8 integration and extracted into this standalone repository.
+
+DeepSeek Harness is copyright its respective contributors and is distributed
+under its own license. This repository contains no credentials or model data.

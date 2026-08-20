@@ -1,0 +1,14 @@
+node_modules/
+lib/
+artifacts/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+verifier-evaluations/
