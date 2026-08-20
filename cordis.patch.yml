@@ -1,20 +1,19 @@
-- insert:
-    - id: verifier
-      name: dsh-llm-as-verifier/core
-      config:
+- id: verifier
+  name: dsh-llm-as-verifier/core
+  config:
+    enabled: false
+    plugin: null
+
+- id: verifier-provider
+  name: dsh-llm-as-verifier/provider
+  config:
+    criteria:
+      Overall: Is this trajectory correct, complete, and adequately verified?
+
+- id: verifier-observer
+  name: dsh-llm-as-verifier/observer
+  config:
+    evaluationLogging:
+      enabled: false
+      adaptiveShadow:
         enabled: false
-        plugin: null
-
-    - id: verifier-provider
-      name: dsh-llm-as-verifier/provider
-      config:
-        criteria:
-          Overall: Is this trajectory correct, complete, and adequately verified?
-
-    - id: verifier-observer
-      name: dsh-llm-as-verifier/observer
-      config:
-        evaluationLogging:
-          enabled: false
-          adaptiveShadow:
-            enabled: false

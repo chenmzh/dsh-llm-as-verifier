@@ -6,7 +6,7 @@
 - `dsh-llm-as-verifier/provider`：基于 Python worker 的 DeepSeek/OpenAI-compatible provider。
 - `dsh-llm-as-verifier/observer`：可选的会话生命周期评估和 JSONL 记录。
 
-自带的 `cordis.patch.yml` 默认以关闭状态挂载三个插件。只有在 `verifier` 设置中启用并选择 provider 后才会实际发起验证。
+自带的 `cordis.patch.yml` 会把 rc.8 base 中的三个 verifier 行替换为本独立包入口，并保持默认关闭。只有在 `verifier` 设置中启用并选择 provider 后才会实际发起验证。
 
 ## 开发
 

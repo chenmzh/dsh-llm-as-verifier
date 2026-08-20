@@ -6,7 +6,7 @@ Independent LLM-as-verifier bundle for DeepSeek Harness. One installation expose
 - `dsh-llm-as-verifier/provider`: DeepSeek/OpenAI-compatible Python worker provider.
 - `dsh-llm-as-verifier/observer`: optional session lifecycle evaluation and JSONL records.
 
-The bundled `cordis.patch.yml` mounts all three plugins disabled by default. Verification starts only after the `verifier` settings namespace enables it and selects a provider.
+The bundled `cordis.patch.yml` replaces the three rc.8 base verifier rows with this package's standalone entries. All three stay disabled by default. Verification starts only after the `verifier` settings namespace enables it and selects a provider.
 
 ## Development
 

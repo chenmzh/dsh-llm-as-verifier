@@ -1,6 +1,6 @@
 {
   "name": "dsh-llm-as-verifier",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Provider-neutral trajectory verification, an LLM-as-verifier provider, and an observer bundle for DeepSeek Harness",
   "license": "MIT",
   "type": "module",
