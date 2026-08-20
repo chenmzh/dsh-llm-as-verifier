@@ -18,6 +18,18 @@ pnpm check
 pnpm pack:check
 ```
 
+provider 还需要 Python 3.9 或更高版本。请在隔离环境中安装固定版本的运行依赖，
+并让 DSH 使用该解释器：
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+把 `verifier-llm-as-verifier.pythonExecutable` 设置为 `.venv/bin/python` 的
+绝对路径。若指定解释器无法导入必需的 Python 包，provider 会返回稳定错误码
+`PYTHON_DEPENDENCY_MISSING`，不会隐式依赖系统 Python 中偶然安装的包。
+
 ## DeepSeek Harness 集成
 
 把 `dsh-llm-as-verifier` 加入 profile 依赖，再把 rc.8 base composition 中的 `verifier`、`verifier-provider` 和 `verifier-observer` 三行指向上面的包子路径。不要再把本包加入 rc.8 profile 的 bundle 列表，否则 rc.8 会拒绝后置的包名替换。当前 Web 设置页和 API 适配层仍保留在 DSH fork 中，后续会继续缩减为外部插件适配层。

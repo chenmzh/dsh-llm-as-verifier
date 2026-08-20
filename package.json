@@ -1,6 +1,6 @@
 {
   "name": "dsh-llm-as-verifier",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Provider-neutral trajectory verification, an LLM-as-verifier provider, and an observer bundle for DeepSeek Harness",
   "license": "MIT",
   "type": "module",
@@ -62,13 +62,15 @@
     "README.md",
     "README.zh.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "requirements.txt"
   ],
   "scripts": {
     "build": "pnpm run typecheck && tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "python:check": "python3 -m py_compile worker.py",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run python:check && pnpm run build",
     "pack:check": "pnpm pack --pack-destination artifacts",
     "prepublishOnly": "pnpm --config.minimum-release-age=0 run check"
   },

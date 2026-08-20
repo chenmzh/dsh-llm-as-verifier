@@ -629,10 +629,14 @@ async function createGeneration(
     }),
   }
 }
-function probeFailureReason(error: unknown): string {
+/** Convert backend probe failures into stable, non-sensitive UI reason codes. */
+export function probeFailureReason(error: unknown): string {
   if (error instanceof VerifierBackendError) {
     const reason = error.details?.failure_reason
     if (typeof reason === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(reason)) return reason
+    if (error.code === 'ModuleNotFoundError' || error.code === 'ImportError') {
+      return 'PYTHON_DEPENDENCY_MISSING'
+    }
     if (error.code === 'VerifierCapabilityError') return 'LOGPROBS_UNAVAILABLE'
     if (error.code === 'VerifierProbeInconclusive') return 'PROBE_INCONCLUSIVE'
   }

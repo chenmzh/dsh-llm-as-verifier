@@ -18,6 +18,19 @@ pnpm check
 pnpm pack:check
 ```
 
+The provider also requires Python 3.9 or newer. Install its pinned runtime in an
+isolated environment and configure DSH to use that interpreter:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Set `verifier-llm-as-verifier.pythonExecutable` to the absolute path of
+`.venv/bin/python`. The provider reports `PYTHON_DEPENDENCY_MISSING` when the
+configured interpreter cannot import a required Python package. It never
+depends on packages installed implicitly in the machine-wide Python.
+
 ## DeepSeek Harness integration
 
 Add `dsh-llm-as-verifier` to the profile dependencies, then point the rc.8 base composition rows `verifier`, `verifier-provider`, and `verifier-observer` to the package subpaths listed above. Do not add this package to the rc.8 profile bundle list: rc.8 rejects package-name replacement from a later bundle. The current Web settings and API adapter remains in the DSH fork and is being reduced to a thin external-plugin adapter.

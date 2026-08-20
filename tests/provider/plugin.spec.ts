@@ -11,6 +11,7 @@ import {
   DEFAULT_VERIFIER_BASE_URL,
   DEFAULT_VERIFIER_TRANSPORT,
   LLMAsVerifierPlugin,
+  probeFailureReason,
   resolveConfig,
   VERIFIER_MODEL,
   VerifierBackendError,
@@ -40,6 +41,19 @@ class FakeGateway implements VerifierGateway {
     return response
   }
 }
+
+describe('capability failure classification', () => {
+  it('reports missing Python runtime dependencies without leaking import details', () => {
+    expect(probeFailureReason(new VerifierBackendError(
+      'ModuleNotFoundError',
+      "No module named 'llm_verifier'",
+    ))).toBe('PYTHON_DEPENDENCY_MISSING')
+    expect(probeFailureReason(new VerifierBackendError(
+      'ImportError',
+      'cannot import a transitive dependency from a local path',
+    ))).toBe('PYTHON_DEPENDENCY_MISSING')
+  })
+})
 
 const usage = {
   calls: 2,
