@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-19-web-verifier-configuration.md
-2026-08-19-web-verifier-configuration.md: f8e20f5991150930969d031f85e037143b7d69ad
-2026-08-19-web-verifier-configuration.zh.md: 828715b25d8a82430468c2284624aaebe4430135
+2026-08-19-web-verifier-configuration.md: a37e9f15a745284b9621f0d49a288c2e2d14c212
+2026-08-19-web-verifier-configuration.zh.md: 48aea8d01f87d33b7e2ea2f67e4b6831f9753c13

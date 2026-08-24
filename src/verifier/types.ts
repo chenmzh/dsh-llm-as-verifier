@@ -1,5 +1,5 @@
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { JsonValue, TurnEndReason } from '@deepseek-ai/dsh-session'
+import type { JsonValue, Session, TurnEndReason } from '@deepseek-ai/dsh-session'
 
 /** Opaque identifier for one verifier progress-tracking stream. */
 export type VerifierTrackerId = Branded<'VerifierTrackerId'>
@@ -210,6 +210,12 @@ export interface VerifierCallContext {
   readonly labels?: Readonly<Record<string, string>>
   /** Observation-only correlation and external outcome data; never sent as verifier evidence. */
   readonly evaluation?: VerifierEvaluationContext
+}
+
+/** Runtime dispatch context; the generic runtime consumes `session` before calling a provider. */
+export interface VerifierDispatchContext extends VerifierCallContext {
+  /** Session whose durable verifier mode governs this operation. */
+  readonly session?: Session
 }
 
 /** Final completion score. A fail-open result has no score and carries metadata.failure. */

@@ -1,6 +1,6 @@
 import type {
   CanonicalTrajectory,
-  VerifierCallContext,
+  VerifierDispatchContext,
   VerifierCandidate,
   VerifierSelectionResult,
 } from './types.ts'
@@ -11,7 +11,7 @@ export interface VerifierSelectionDispatcher {
   select?<T>(
     task: string,
     candidates: readonly VerifierCandidate<T>[],
-    context?: VerifierCallContext,
+    context?: VerifierDispatchContext,
   ): Promise<VerifierSelectionResult<T>>
 }
 
@@ -25,7 +25,7 @@ export interface BestOfNOptions<T> {
   readonly adapt: (candidate: T, index: number) => CanonicalTrajectory
   /** Provider or {@link VerifierRuntime}-compatible dispatcher; the runtime also emits observation signals. */
   readonly verifier: VerifierSelectionDispatcher
-  readonly context?: VerifierCallContext
+  readonly context?: VerifierDispatchContext
 }
 
 /**

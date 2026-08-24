@@ -198,6 +198,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     }
     const trajectory = adapter.adaptTurn(events, turn)
     const context = {
+      session,
       trackerId: VerifierTrackerId(`${session.id}:${turn}`),
       labels: { sessionId: session.id, turn: String(turn) },
     }

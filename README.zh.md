@@ -8,7 +8,7 @@
 - `dsh-llm-as-verifier/provider`：基于 Python worker 的 DeepSeek/OpenAI-compatible provider。
 - `dsh-llm-as-verifier/observer`：可选的会话生命周期评估和 JSONL 记录。
 
-包内保留的 `cordis.patch.yml` 可用于没有预置 verifier 行的 composition。DeepSeek Harness rc.8 已占用三个 verifier 行 ID，并禁止后加载 bundle 修改包名，因此 rc.8 必须在 base composition 适配层替换对应包名。三个插件均保持默认关闭，只有在 `verifier` 设置中启用并选择 provider 后才会实际发起验证。
+包内保留的 `cordis.patch.yml` 可用于没有预置 verifier 行的 composition。DeepSeek Harness rc.8 已占用三个 verifier 行 ID，并禁止后加载 bundle 修改包名，因此 rc.8 必须在 base composition 适配层替换对应包名。三个插件均保持默认关闭，只有在 `verifier` 设置中启用并选择 provider 后才会实际发起验证。每个会话默认跟随全局状态，也可以用 `/verifier on`、`/verifier off` 或 `/verifier default` 独立控制之后的 verifier 工作。
 
 ## 这个包能做什么
 
@@ -169,7 +169,9 @@ logging。
 | `plugin` | provider directory ID。使用 `llm-as-a-verifier`；关闭时使用 `null`。 |
 
 core 与具体 provider 解耦。选择 provider 不会自动启用 observer logging，
-也不会自动改变 agent 的正常回答路径。
+也不会自动改变 agent 的正常回答路径。会话默认跟随主开关；`/verifier on`、
+`/verifier off` 和 `/verifier default` 只改变该会话之后的调用，并从其持久命令
+生命周期恢复。
 
 ### `verifier-llm-as-verifier` provider
 

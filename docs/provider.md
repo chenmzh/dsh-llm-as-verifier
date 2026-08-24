@@ -107,7 +107,7 @@ Structured operation telemetry reports the credential-free endpoint identifier, 
 
 ## Best-of-N
 
-Use `runBestOfN()` from `dsh-llm-as-verifier/core` with `ctx.verifier`. Selection then passes through the generic runtime and its data-minimized observation event. The caller owns independent Harness runs and adaptation; its worker strategy is not read or changed by the verifier; this provider receives only canonical candidate text and returns the selected index, scores, ranking, and metadata while the generic helper retains original candidate identity.
+Use `runBestOfN()` from `dsh-llm-as-verifier/core` with `ctx.verifier`. Pass the owning `Session` in `context` when the caller needs per-session verifier mode. Selection then passes through the generic runtime and its data-minimized observation event. The caller owns independent Harness runs and adaptation; its worker strategy is not read or changed by the verifier; this provider receives only canonical candidate text and returns the selected index, scores, ranking, and metadata while the generic helper retains original candidate identity.
 
 ## Model Experience
 

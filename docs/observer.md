@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 This Consumer listens to post-commit `session/event` notifications and invokes the optional verifier hooks. At each `step/end` it reconstructs that turn, supplies the new canonical step to `onStepEnd`, and emits `verifier/progress` when a result exists. At `turn/end` it calls `onTrajectoryEnd` and emits `verifier/trajectory`.
 
-Tasks come from the user message admitted for the turn, with the latest earlier human prompt as an imported-session fallback. Work is serialized per session, tracker ids are stable per session turn, and plugin disposal drains queued measurements. Missing task or step evidence is logged and skipped. Any verifier or listener failure is contained after the session event commits.
+Tasks come from the user message admitted for the turn, with the latest earlier human prompt as an imported-session fallback. Work is serialized per session, tracker ids are stable per session turn, and plugin disposal drains queued measurements. Missing task or step evidence is logged and skipped. Any verifier or listener failure is contained after the session event commits. Sessions with a successful `/verifier off` command skip later measurements until `/verifier on` or `/verifier default` is completed; the observer supplies the owning session to the runtime for this decision.
 
 The emitted signals are live typed events, not durable session events. Policy plugins can observe them for future early stopping, retry, resampling, pruning, or adaptive-compute decisions without adding those decisions to this measurement Consumer.
 

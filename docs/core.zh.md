@@ -6,6 +6,8 @@
 
 `verifier` 设置命名空间包含实时主开关和所选插件 id。`enabled: false` 或 `plugin: null` 会使服务保持休眠，即使提供方已经挂载。`plugins()` 为配置界面公开分离的描述符，`testCapability()` 把特权探针委托给指定提供方，不会选择该提供方，也不会改变 Worker 状态。
 
+会话默认跟随全局开关，也可以通过 `/verifier on`、`/verifier off` 或 `/verifier default` 控制该会话之后的 verifier 调用。接受的模式从持久命令生命周期投影，并在恢复后继续生效；失败或中断的命令不会改变模式。当会话策略适用时，直接 runtime 与 Best-of-N 调用方通过 `VerifierDispatchContext` 传入所属 `Session`。
+
 ## 规范轨迹
 
 `TrajectoryAdapter` 从已提交的 `SessionEvent` 记录重建 `AgentStep`。每一步保留可见的助手文本、按顺序排列的工具名称和输入、已提交的输出、受限的工具元数据、净化后的工具错误、最后一个可见答案和终止原因。它排除推理块、`assistant/chunk`、模型请求数据、提供商元数据和原始 DeepSeek 载荷。字段级和整条轨迹的 UTF-8 字节限制会保留超长文本两端的证据。
@@ -20,7 +22,7 @@
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   runBestOfN,
   TrajectoryAdapter,
@@ -38,6 +40,7 @@ export async function selectBest(
   task: string,
   harness: Harness,
   ctx: Context,
+  ownerSession: Session,
 ): Promise<HarnessResult> {
   const adapter = new TrajectoryAdapter({
     maxFieldBytes: 65_536,
@@ -49,6 +52,7 @@ export async function selectBest(
     run: index => harness.run(task, { rollout: index }),
     adapt: result => adapter.adapt(result.session.events),
     verifier: ctx.verifier,
+    context: { session: ownerSession },
   })
   return selection.bestCandidate
 }
@@ -75,3 +79,4 @@ export async function selectBest(
 - 内置适配器读取当前 `SessionEvent` 记录；其他 harness 结果需要调用方提供适配器。
 - Best-of-N 并发运行候选，不添加重试、分支、预算或提前停止策略。
 - 进度和最终分数只是测量值；此包不把它们解释为智能体控制决策。
+- 需要会话策略的直接 runtime 与 Best-of-N 调用方必须传入所属 `Session`；省略它会保留进程级行为。

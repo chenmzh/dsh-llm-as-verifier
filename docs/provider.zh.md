@@ -107,7 +107,7 @@ DEEPSEEK_API_KEY=... python3 scripts/smoke-dsv4-verifier.py
 
 ## Best-of-N
 
-将 `dsh-llm-as-verifier/core` 的 `runBestOfN()` 与 `ctx.verifier` 一起使用。选择会经过通用运行时及其数据最小化观察事件。调用方负责独立运行 Harness 并适配结果；验证器不会读取或改变其 worker 策略；此提供商只接收规范候选文本，并返回选中索引、分数、排序和元数据，通用辅助函数则保留原始候选对象身份。
+将 `dsh-llm-as-verifier/core` 的 `runBestOfN()` 与 `ctx.verifier` 一起使用。当调用方需要会话级 verifier 模式时，在 `context` 中传入所属 `Session`。选择会经过通用运行时及其数据最小化观察事件。调用方负责独立运行 Harness 并适配结果；验证器不会读取或改变其 worker 策略；此提供商只接收规范候选文本，并返回选中索引、分数、排序和元数据，通用辅助函数则保留原始候选对象身份。
 
 ## 模型体验
 

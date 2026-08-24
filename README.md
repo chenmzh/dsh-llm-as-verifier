@@ -8,7 +8,7 @@ Independent LLM-as-verifier runtime package for DeepSeek Harness. One installati
 - `dsh-llm-as-verifier/provider`: DeepSeek/OpenAI-compatible Python worker provider.
 - `dsh-llm-as-verifier/observer`: optional session lifecycle evaluation and JSONL records.
 
-The package keeps a `cordis.patch.yml` composition fragment for clean compositions. DeepSeek Harness rc.8 already owns the three verifier row IDs and does not permit later bundles to change their package names, so rc.8 integration must replace those names in the base composition adapter. All three stay disabled by default. Verification starts only after the `verifier` settings namespace enables it and selects a provider.
+The package keeps a `cordis.patch.yml` composition fragment for clean compositions. DeepSeek Harness rc.8 already owns the three verifier row IDs and does not permit later bundles to change their package names, so rc.8 integration must replace those names in the base composition adapter. All three stay disabled by default. Verification starts only after the `verifier` settings namespace enables it and selects a provider. Each session follows that global state by default and may use `/verifier on`, `/verifier off`, or `/verifier default` to control its later verifier work independently.
 
 ## What this package does
 
@@ -177,7 +177,10 @@ you intentionally want local evaluation records.
 | `plugin` | Provider directory ID. Use `llm-as-a-verifier`; use `null` while disabled. |
 
 The core is provider-neutral. Selecting a provider does not automatically enable
-observer logging or alter the agent's normal answer path.
+observer logging or alter the agent's normal answer path. A session follows the
+master switch by default; `/verifier on`, `/verifier off`, and `/verifier default`
+change only that session's later dispatches and are restored from its durable
+command lifecycle.
 
 ### `verifier-llm-as-verifier` provider
 

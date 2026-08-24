@@ -3,6 +3,7 @@ import type { UserConfig } from 'tsdown'
 const external = [
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-brand',
+  '@deepseek-ai/dsh-commands',
   '@deepseek-ai/dsh-credentials',
   '@deepseek-ai/dsh-invariants',
   '@deepseek-ai/dsh-launch-environment',

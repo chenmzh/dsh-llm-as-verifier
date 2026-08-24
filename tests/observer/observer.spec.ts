@@ -188,6 +188,44 @@ describe('verifier-observer', () => {
     expect(onStepEnd).not.toHaveBeenCalled()
   })
 
+  it('measures only sessions whose durable verifier mode is active', async () => {
+    const onStepEnd = vi.fn(async (_task, _trajectory, step) => ({
+      stepIndex: step.index,
+      metadata: { backend: 'fake', latencyMs: 1 },
+    }))
+    const onTrajectoryEnd = vi.fn(async () => ({
+      score: 0.5,
+      metadata: { backend: 'fake', latencyMs: 1 },
+    }))
+    const { ctx, observerFiber } = await setup({ id: 'fake', onStepEnd, onTrajectoryEnd })
+    const off = ctx.sessions.create(SessionId('verifier-off'))
+    const active = ctx.sessions.create(SessionId('verifier-active'))
+    const commandId = 'verifier-off' as never
+    off.append('command/run', {
+      commandId,
+      name: 'verifier',
+      args: ' off',
+      source: { kind: 'user' },
+    })
+    off.append('command/done', { commandId, kind: 'success' })
+
+    for (const session of [off, active]) {
+      session.append('turn/start', { turn: 1 })
+      session.append('user/message', createUserMessage({
+        source: { kind: 'user' }, content: [{ type: 'text', text: 'task' }],
+      }), { surfaceOp: 'append' })
+      appendStep(session, 1, 'answer')
+      session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    }
+
+    await observerFiber.dispose()
+    expect(onStepEnd).toHaveBeenCalledOnce()
+    expect(onTrajectoryEnd).toHaveBeenCalledOnce()
+    expect(onStepEnd.mock.calls[0]?.[1].finalAnswer).toBe('answer')
+    expect(off.events.some(event => event.type === 'command/run')).toBe(true)
+    expect(active.events.some(event => event.type === 'command/run')).toBe(false)
+  })
+
   it('fails loud on invalid adapter bounds', async () => {
     const ctx = new Context()
     await ctx.plugin(VerifierRuntime)

@@ -6,6 +6,8 @@ This Service Definition publishes one optional verifier through `ctx.verifier`. 
 
 The `verifier` settings namespace contains the live master switch and selected plugin id. `enabled: false` or `plugin: null` makes the service inert even while providers are mounted. `plugins()` exposes detached descriptors for configuration surfaces, and `testCapability()` delegates a privileged probe to the named provider without selecting it or changing Worker state.
 
+Sessions follow the global switch by default and can use `/verifier on`, `/verifier off`, or `/verifier default` to control later verifier dispatch for that session. The accepted mode is projected from the durable command lifecycle and survives resume; a failed or interrupted command does not change it. Direct runtime and Best-of-N callers pass the owning `Session` through `VerifierDispatchContext` when session policy applies.
+
 ## Canonical trajectories
 
 `TrajectoryAdapter` reconstructs `AgentStep` values from committed `SessionEvent` records. Each step retains visible assistant text, ordered tool names and inputs, committed outputs, bounded tool metadata, sanitized tool errors, the last visible answer, and the terminal turn reason. It excludes reasoning blocks, `assistant/chunk`, model request data, provider metadata, and raw DeepSeek payloads. Per-field and whole-trajectory UTF-8 byte limits retain evidence from both ends of oversized text.
@@ -20,7 +22,7 @@ A provider may attach relative selection confidence and verification telemetry t
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   runBestOfN,
   TrajectoryAdapter,
@@ -38,6 +40,7 @@ export async function selectBest(
   task: string,
   harness: Harness,
   ctx: Context,
+  ownerSession: Session,
 ): Promise<HarnessResult> {
   const adapter = new TrajectoryAdapter({
     maxFieldBytes: 65_536,
@@ -49,6 +52,7 @@ export async function selectBest(
     run: index => harness.run(task, { rollout: index }),
     adapt: result => adapter.adapt(result.session.events),
     verifier: ctx.verifier,
+    context: { session: ownerSession },
   })
   return selection.bestCandidate
 }
@@ -75,3 +79,4 @@ Installing the Service Definition alone does not change the agent model's reques
 - The built-in adapter consumes current `SessionEvent` records; foreign harness results need a caller-supplied adapter.
 - Best-of-N runs candidates concurrently and does not add retry, branching, budget, or early-stop policy.
 - Progress and final scores are measurements. This package does not interpret them as agent-control decisions.
+- Direct runtime and Best-of-N callers that need session policy must pass the owning `Session`; omitting it preserves process-global behavior.

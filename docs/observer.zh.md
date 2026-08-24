@@ -4,7 +4,7 @@
 
 此消费者监听提交后的 `session/event` 通知并调用可选验证器钩子。每次 `step/end` 时，它重建当前轮次，把新的规范步骤传给 `onStepEnd`，并在存在结果时发出 `verifier/progress`。在 `turn/end` 时，它调用 `onTrajectoryEnd` 并发出 `verifier/trajectory`。
 
-任务取自当前轮次接纳的用户消息；导入 session 缺少该消息时，回退到最近的较早人工提示。每个 session 的工作串行执行，tracker id 在每个 session 轮次内稳定，插件卸载会排空已排队测量。缺失任务或步骤证据会记录警告并跳过。session 事件提交之后，任何验证器或监听器失败都会被隔离。
+任务取自当前轮次接纳的用户消息；导入 session 缺少该消息时，回退到最近的较早人工提示。每个 session 的工作串行执行，tracker id 在每个 session 轮次内稳定，插件卸载会排空已排队测量。缺失任务或步骤证据会记录警告并跳过。session 事件提交之后，任何验证器或监听器失败都会被隔离。成功完成 `/verifier off` 的会话会跳过之后的测量，直到完成 `/verifier on` 或 `/verifier default`；观察者会把所属 session 传给 runtime 参与这个决定。
 
 发出的信号是实时类型化事件，不是持久 session 事件。策略插件以后可以监听它们以实现提前停止、重试、重新采样、剪枝或自适应计算，而无需把这些决策加入此测量消费者。
 

@@ -2,6 +2,8 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-commands'
+import type { Session } from '@deepseek-ai/dsh-session'
 import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type {
   AgentStep,
@@ -9,6 +11,7 @@ import type {
   VerifierCallContext,
   VerifierCandidate,
   VerifierCapability,
+  VerifierDispatchContext,
   VerifierComparisonResult,
   VerifierPlugin,
   VerifierCapabilityProbeResult,
@@ -19,9 +22,11 @@ import type {
   VerifierSelectionResult,
   VerifierSelectionSignal,
 } from './types.ts'
+import { effectiveVerifierMode, isVerifierSessionMode } from './session-mode.ts'
 
 export * from './types.ts'
 export * from './trajectory.ts'
+export * from './session-mode.ts'
 export * from './best-of-n.ts'
 
 /** Settings namespace controlling whether verification participates in eligible orchestration. */
@@ -47,6 +52,19 @@ interface RegisteredVerifier {
   readonly plugin: VerifierPlugin
   readonly descriptor: VerifierPluginDescriptor
   readonly probe?: (signal?: AbortSignal) => Promise<VerifierCapabilityProbeResult>
+}
+
+const VERIFIER_COMMAND_USAGE = 'Usage: /verifier [on|off|default|status]'
+
+/** Remove the runtime-owned session before provider dispatch. */
+function providerContext(context: VerifierDispatchContext | undefined): VerifierCallContext | undefined {
+  if (context === undefined) return undefined
+  return {
+    ...(context.signal === undefined ? {} : { signal: context.signal }),
+    ...(context.trackerId === undefined ? {} : { trackerId: context.trackerId }),
+    ...(context.labels === undefined ? {} : { labels: context.labels }),
+    ...(context.evaluation === undefined ? {} : { evaluation: context.evaluation }),
+  }
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -87,6 +105,23 @@ export class VerifierRuntime extends Service {
       setSource: (source) => { this.source = source },
       onChange: () => {},
     })
+    ctx.inject(['commands'], (commandCtx) => {
+      commandCtx.commands.register({
+        name: 'verifier',
+        description: 'Show or switch verifier use for this session',
+        input: { hint: '[on|off|default|status]' },
+        handler: ({ agent, rawInput }) => {
+          const requested = rawInput.trim()
+          if (requested === '' || requested === 'status') {
+            return { kind: 'success', text: this.describe(agent.session) }
+          }
+          if (!isVerifierSessionMode(requested)) {
+            return { kind: 'error', text: VERIFIER_COMMAND_USAGE }
+          }
+          return { kind: 'success', text: this.describe(agent.session, requested) }
+        },
+      })
+    })
   }
 
   /** Current selected verifier implementation, or `undefined` while disabled, unselected, or unavailable. */
@@ -94,6 +129,46 @@ export class VerifierRuntime extends Service {
     const selection = this.source()
     if (!selection.enabled || selection.plugin == null) return undefined
     return this.providers.get(selection.plugin)?.plugin
+  }
+
+  /**
+   * Resolve the selected implementation for one session.
+   * @param session Session whose durable mode may disable dispatch.
+   * @returns The configured implementation, or `undefined` while globally or locally inactive.
+   */
+  currentFor(session?: Session): VerifierPlugin | undefined {
+    const plugin = this.current
+    if (plugin === undefined || session === undefined) return plugin
+    return effectiveVerifierMode(session.events) === 'off' ? undefined : plugin
+  }
+
+  /**
+   * Report whether one session can dispatch verifier work.
+   * @param session Session whose durable mode participates in resolution.
+   * @returns Whether a globally enabled, available provider is active for the session.
+   */
+  enabledFor(session: Session): boolean {
+    return this.currentFor(session) !== undefined
+  }
+
+  /**
+   * Render current session mode and effective availability for the human command result.
+   * @param session Session whose durable mode is reported.
+   * @param override Accepted mode whose command completion is still being recorded.
+   * @returns Human-readable effective state and its controlling reason.
+   */
+  private describe(session: Session, override?: 'default' | 'on' | 'off'): string {
+    const mode = override ?? effectiveVerifierMode(session.events)
+    const selection = this.source()
+    const effective = mode !== 'off' && this.current !== undefined ? 'on' : 'off'
+    const reason = !selection.enabled
+      ? 'global verifier is disabled'
+      : selection.plugin == null
+        ? 'no verifier plugin is selected'
+        : this.providers.has(selection.plugin)
+          ? `plugin ${selection.plugin}`
+          : `plugin ${selection.plugin} is unavailable`
+    return `Verifier ${effective} for this session (mode ${mode}; ${reason}).`
   }
 
   /**
@@ -151,10 +226,11 @@ export class VerifierRuntime extends Service {
   /**
    * Test whether the current implementation exposes one optional operation.
    * @param capability Operation to inspect.
+   * @param session Optional session whose durable mode participates in resolution.
    * @returns Whether the operation can be dispatched.
    */
-  supports(capability: VerifierCapability): boolean {
-    const plugin = this.current
+  supports(capability: VerifierCapability, session?: Session): boolean {
+    const plugin = this.currentFor(session)
     return plugin !== undefined && typeof plugin[capability] === 'function'
   }
 
@@ -165,8 +241,8 @@ export class VerifierRuntime extends Service {
    * @param context Optional cancellation and correlation fields.
    * @returns Structured score or fail-open metadata.
    */
-  score(task: string, trajectory: CanonicalTrajectory, context?: VerifierCallContext): Promise<VerifierScoreResult> {
-    return this.requireCapability('score').score(task, trajectory, context)
+  score(task: string, trajectory: CanonicalTrajectory, context?: VerifierDispatchContext): Promise<VerifierScoreResult> {
+    return this.requireCapability('score', context?.session).score(task, trajectory, providerContext(context))
   }
 
   /**
@@ -181,9 +257,14 @@ export class VerifierRuntime extends Service {
     task: string,
     candidateA: CanonicalTrajectory,
     candidateB: CanonicalTrajectory,
-    context?: VerifierCallContext,
+    context?: VerifierDispatchContext,
   ): Promise<VerifierComparisonResult> {
-    return this.requireCapability('compare').compare(task, candidateA, candidateB, context)
+    return this.requireCapability('compare', context?.session).compare(
+      task,
+      candidateA,
+      candidateB,
+      providerContext(context),
+    )
   }
 
   /**
@@ -196,10 +277,10 @@ export class VerifierRuntime extends Service {
   async select<T>(
     task: string,
     candidates: readonly VerifierCandidate<T>[],
-    context?: VerifierCallContext,
+    context?: VerifierDispatchContext,
   ): Promise<VerifierSelectionResult<T>> {
-    const plugin = this.requireCapability('select')
-    const result = await plugin.select(task, candidates, context)
+    const plugin = this.requireCapability('select', context?.session)
+    const result = await plugin.select(task, candidates, providerContext(context))
     const signal: VerifierSelectionSignal = {
       verifierId: plugin.id,
       ...(plugin.model === undefined ? {} : { model: plugin.model }),
@@ -234,9 +315,14 @@ export class VerifierRuntime extends Service {
     task: string,
     trajectory: CanonicalTrajectory,
     step: AgentStep,
-    context?: VerifierCallContext,
+    context?: VerifierDispatchContext,
   ): Promise<VerifierProgressResult | undefined> {
-    return this.current?.onStepEnd?.(task, trajectory, step, context) ?? Promise.resolve(undefined)
+    return this.currentFor(context?.session)?.onStepEnd?.(
+      task,
+      trajectory,
+      step,
+      providerContext(context),
+    ) ?? Promise.resolve(undefined)
   }
 
   /**
@@ -249,15 +335,20 @@ export class VerifierRuntime extends Service {
   onTrajectoryEnd(
     task: string,
     trajectory: CanonicalTrajectory,
-    context?: VerifierCallContext,
+    context?: VerifierDispatchContext,
   ): Promise<VerifierScoreResult | undefined> {
-    return this.current?.onTrajectoryEnd?.(task, trajectory, context) ?? Promise.resolve(undefined)
+    return this.currentFor(context?.session)?.onTrajectoryEnd?.(
+      task,
+      trajectory,
+      providerContext(context),
+    ) ?? Promise.resolve(undefined)
   }
 
   private requireCapability<K extends 'score' | 'compare' | 'select'>(
     capability: K,
+    session?: Session,
   ): VerifierPlugin & Required<Pick<VerifierPlugin, K>> {
-    const plugin = this.current
+    const plugin = this.currentFor(session)
     if (plugin === undefined) throw new Error('verifier: no enabled plugin is selected')
     if (plugin[capability] === undefined) {
       throw new Error(`verifier "${plugin.id}" does not support ${capability}`)

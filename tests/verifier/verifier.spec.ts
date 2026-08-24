@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import VerifierRuntime, { runBestOfN, VerifierTrackerId } from 'dsh-llm-as-verifier/core'
+import CommandRuntime, { CommandId } from '@deepseek-ai/dsh-commands'
+import { Session, SessionId } from '@deepseek-ai/dsh-session'
+import VerifierRuntime, { effectiveVerifierMode, runBestOfN, VerifierTrackerId } from 'dsh-llm-as-verifier/core'
 import type {
   CanonicalTrajectory,
   VerifierCandidate,
@@ -14,6 +16,23 @@ const trajectory = (answer: string): CanonicalTrajectory => ({
   finalAnswer: answer,
   outcome: { kind: 'completed' },
 })
+
+let modeCommand = 0
+
+function appendVerifierMode(
+  session: Session,
+  mode: 'default' | 'on' | 'off',
+  outcome: 'success' | 'error' = 'success',
+): void {
+  const commandId = CommandId(`verifier-mode-${modeCommand++}`)
+  session.append('command/run', {
+    commandId,
+    name: 'verifier',
+    args: ` ${mode}`,
+    source: { kind: 'user' },
+  })
+  session.append('command/done', { commandId, kind: outcome })
+}
 
 describe('VerifierRuntime', () => {
   it('is inert without a configured provider', async () => {
@@ -34,6 +53,10 @@ describe('VerifierRuntime', () => {
     expect(runtime.plugins()).toEqual([{ id: 'fake', displayName: 'Fake verifier', available: true }])
     expect(runtime.current).toBeUndefined()
     expect(runtime.supports('score')).toBe(false)
+    const session = Session.create(SessionId('disabled-verifier'))
+    appendVerifierMode(session, 'on')
+    expect(runtime.enabledFor(session)).toBe(false)
+
     await expect(runtime.onStepEnd('task', trajectory('a'), trajectory('a').steps[0]!)).resolves.toBeUndefined()
     expect(score).not.toHaveBeenCalled()
     expect(() => runtime.score('task', trajectory('a'))).toThrow('no enabled plugin is selected')
@@ -107,6 +130,74 @@ describe('VerifierRuntime', () => {
 
     ctx.on('verifier/selection', () => { throw new Error('observer failed') })
     await expect(runtime.select('task', candidates)).resolves.toMatchObject({ selectedIndex: 1 })
+  })
+
+  it('isolates durable session modes, restores them on replay, and hides the Session from providers', async () => {
+    const contexts: unknown[] = []
+    const onTrajectoryEnd = vi.fn(async (_task, _trajectory, context) => {
+      contexts.push(context)
+      return { score: 0.8, metadata: { backend: 'fake', latencyMs: 1 } }
+    })
+    const runtime = new VerifierRuntime(new Context(), { enabled: true, plugin: 'fake' })
+    runtime.register({ id: 'fake', onTrajectoryEnd })
+    const first = Session.create(SessionId('verifier-first'))
+    const second = Session.create(SessionId('verifier-second'))
+
+    appendVerifierMode(first, 'off')
+    expect(effectiveVerifierMode(first.events)).toBe('off')
+    expect(effectiveVerifierMode(second.events)).toBe('default')
+    expect(runtime.enabledFor(first)).toBe(false)
+    expect(runtime.enabledFor(second)).toBe(true)
+    await expect(runtime.onTrajectoryEnd('task', trajectory('first'), { session: first }))
+      .resolves.toBeUndefined()
+    await expect(runtime.onTrajectoryEnd('task', trajectory('second'), {
+      session: second,
+      labels: { owner: 'second' },
+    })).resolves.toMatchObject({ score: 0.8 })
+
+    appendVerifierMode(first, 'on')
+    appendVerifierMode(first, 'off', 'error')
+    expect(effectiveVerifierMode(first.events)).toBe('on')
+    await expect(runtime.onTrajectoryEnd('task', trajectory('first'), { session: first }))
+      .resolves.toMatchObject({ score: 0.8 })
+    const resumed = Session.create(first.id, first.events, first.header)
+    expect(effectiveVerifierMode(resumed.events)).toBe('on')
+    expect(runtime.enabledFor(resumed)).toBe(true)
+    expect(onTrajectoryEnd).toHaveBeenCalledTimes(2)
+    expect(contexts).toEqual([{ labels: { owner: 'second' } }, {}])
+    expect(JSON.stringify(contexts)).not.toContain('verifier-first')
+  })
+
+  it('switches the receiving session through the human command without affecting its peer', async () => {
+    const ctx = new Context()
+    await ctx.plugin(CommandRuntime)
+    await ctx.plugin(VerifierRuntime, { enabled: true, plugin: 'fake' })
+    ctx.verifier.register({ id: 'fake' })
+    const first = Session.create(SessionId('command-first'))
+    const second = Session.create(SessionId('command-second'))
+    const firstAgent = { session: first } as never
+    const signal = new AbortController().signal
+
+    const off = await ctx.commands.execute(firstAgent, '/verifier off', [], signal)
+    expect(off?.result).toEqual({
+      kind: 'success',
+      text: 'Verifier off for this session (mode off; plugin fake).',
+    })
+    expect(ctx.verifier.enabledFor(first)).toBe(false)
+    expect(ctx.verifier.enabledFor(second)).toBe(true)
+
+    const status = await ctx.commands.execute(firstAgent, '/verifier status', [], signal)
+    expect(status?.result).toEqual(off?.result)
+    expect(effectiveVerifierMode(first.events)).toBe('off')
+
+    const on = await ctx.commands.execute(firstAgent, '/verifier on', [], signal)
+    expect(on?.result).toEqual({
+      kind: 'success',
+      text: 'Verifier on for this session (mode on; plugin fake).',
+    })
+    expect(ctx.verifier.enabledFor(first)).toBe(true)
+    await expect(ctx.commands.execute(firstAgent, '/verifier maybe', [], signal))
+      .resolves.toMatchObject({ result: { kind: 'error', text: 'Usage: /verifier [on|off|default|status]' } })
   })
 })
 

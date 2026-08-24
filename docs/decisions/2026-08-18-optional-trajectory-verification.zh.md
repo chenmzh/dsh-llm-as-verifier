@@ -16,6 +16,8 @@ Status: implemented
 
 `@deepseek-ai/dsh-verifier` 是服务定义。`VerifierPlugin` 提供可选的 `score`、`compare`、`select`、`onStepEnd` 和 `onTrajectoryEnd` 操作，`ctx.verifier` 发布一个受 effect 生命周期管理的实现。`runBestOfN` 不负责生成：调用方提供独立 rollout 与适配函数，再由验证器从脱离运行时的候选记录中选择。结果保留被选中原始候选对象本身。
 
+全局 verifier 设置与选中的提供商是 verifier 工作的前提。每个会话跟随该状态，直到最后一次成功完成的 `/verifier on|off|default` 命令选择模式；`off` 阻止之后的调用，`on` 与 `default` 仍然服从全局主开关。现有持久 `command/run` 与成功 `command/done` 配对是切换的权威事实，因此恢复会话无需第二条领域事件即可恢复模式，失败或中断的命令也不能改变模式。`/verifier status` 只报告状态，不会调度模型轮次或改变模式。`VerifierDispatchContext` 把所属 `Session` 传给通用 runtime；runtime 在调用开始时解析策略，并在调用提供商前移除 Session。session observer 总会传入该值。直接 runtime 与 Best-of-N 调用方在会话策略适用时也必须传入。已经开始的 verifier 工作按启动时解析的状态完成。
+
 `TrajectoryAdapter` 把已提交的 `SessionEvent` 投影为与提供商无关的 `CanonicalTrajectory`。它保留可见助手答案、按顺序排列的工具调用和解析后输入、已提交输出、受限工具元数据、净化后的工具错误和轮次结果；排除推理块、原始分块、请求头、模型来源和提供商线协议数据。UTF-8 字段及整条轨迹上限从两端保留有界证据。
 
 `@deepseek-ai/dsh-verifier-llm-as-verifier` 是可选服务提供商。受管理的持久 Python worker 只在配置后导入 `llm_verifier`，将最终评分映射到最后一个 `track` 检查点，使用其细粒度成对评分器与 PPT 原语执行比较和选择，并把进度映射到 `ProgressTracker`。最终评分在规范步骤后附加终端答案。固定的 `deepseek-v4-flash` 客户端默认仅对官方端点使用 DeepSeek 原生请求；自定义端点使用通用 OpenAI 兼容 transport，除非配置显式覆盖。第一次执行验证器操作前，worker 会发送一个简短的评分 token 能力探针，使用可配置的 1024-token 预算；只有推理耗尽第一次预算时，才用 2048 个 token 重试一次。成功检测结果会在 worker 进程内缓存，并且不包含凭据材料。仅推理耗尽预算时抛出 `VerifierProbeInconclusive`；正常完成的响应如果生成评分 token，却缺失或无法使用评分位置 logprobs，则抛出 `VerifierCapabilityError`。提供商自有 extractor 仍然只根据每次操作中准确 `<score_A>`、`<score_B>` 或 `<cN>` 位置可用的 A–T `top_logprobs` 计算期望值，不会使用上游文本或中性分数 fallback。有界能力诊断会比较可见响应文本与 chosen-token logprob 流，并记录评分载荷 span 候选、原始 alternatives、丢弃原因和 tokenization 分类，同时不会保留完整响应。每次操作都通过 `ctx.credentials` 解析凭据，并按显式引用放入经过清理的 worker 环境。响应、stderr、期限、tracker 保留量和诊断均受限制，配置的凭据值会被净化。
@@ -26,13 +28,13 @@ Status: implemented
 
 提供商将 `maxWorkers` 作为仅验证器的有界并发，默认值为四，并且独立于所有 Worker pool。每次操作在能力检测后快照上游累计用量，因此操作 token 不包含单独报告的探针成本。结果 details 报告计划与实际逻辑 comparisons 和 API calls、安全端点标识、token 缓存计费、scale 分布覆盖、ranking 和延迟。可选 `maxCallsPerOperation` 与 `maxComparisons` 限制会在任何探针或评分请求前拒绝超出无选择缓存计划的操作。
 
-无需修改 `agent-loop`、LLM 适配器、DeepSeek 协议、session 格式或 SDK 事件投影。
+无需修改 `agent-loop`、LLM 适配器、DeepSeek 协议、session 事件词汇、生成的 SDK 投影或结构性 session 格式版本。现有配对命令生命周期日志承载会话策略。
 
 ## 测试
 
-单元测试使用伪验证网关和受管理的子进程句柄，不需要付费 API。覆盖无提供商时保持惰性、能力分派、规范证据及排除项、UTF-8 限制、Best-of-N 对象身份、评分、比较、选择验证、进度顺序、tracker 重置、缺失凭据与后端错误映射、严格传播、超时与取消、凭据轮换、错误或超大 worker 帧、进程清理、设置期卸载、提交后观察者隔离、缺失任务或步骤证据、配置默认值与拒绝路径、固定 DSV4 请求参数、原生与通用验证器 transport、准确评分位置 token 规范化与能力拒绝、分离与融合 tokenization 诊断、chosen-token 流不完整分类、探针完成分类、有界重试、成功检测缓存与配置失效、每操作用量增量、单独探针成本、逻辑 comparison 与 API-call 遥测、避免重复项的 scale 覆盖、固定操作预检预算、诊断净化、完整最终答案评分、显式失败开放选择日志，以及 GPT、Claude、local 与 DSV4 worker 设置和客户端身份保持不变。
+单元测试使用伪验证网关和受管理的子进程句柄，不需要付费 API。覆盖无提供商时保持惰性、能力分派、会话隔离、持久模式重放、会话中 off/on 切换、提供商上下文最小化、规范证据及排除项、UTF-8 限制、Best-of-N 对象身份、评分、比较、选择验证、进度顺序、tracker 重置、缺失凭据与后端错误映射、严格传播、超时与取消、凭据轮换、错误或超大 worker 帧、进程清理、设置期卸载、提交后观察者隔离、缺失任务或步骤证据、配置默认值与拒绝路径、固定 DSV4 请求参数、原生与通用验证器 transport、准确评分位置 token 规范化与能力拒绝、分离与融合 tokenization 诊断、chosen-token 流不完整分类、探针完成分类、有界重试、成功检测缓存与配置失效、每操作用量增量、单独探针成本、逻辑 comparison 与 API-call 遥测、避免重复项的 scale 覆盖、固定操作预检预算、诊断净化、完整最终答案评分、显式失败开放选择日志，以及 GPT、Claude、local 与 DSV4 worker 设置和客户端身份保持不变。
 
-可运行的 headless Cordis overlay 加载真实服务定义、Python 提供商和生命周期消费者。外部 `llm_verifier` 调用不进入无密钥单元测试。
+可运行的 headless Cordis overlay 加载真实服务定义、Python 提供商和生命周期消费者。无密钥 Loader composition 测试启动 `cordis.yml`、发现 `/verifier`，并证明一个会话的切换不影响另一个会话。无密钥 shipped Web scaffold 在 replay 模型轮次前关闭一个实时会话的 verifier，在轮次后重新开启，并固定持久生命周期与人类命令行。外部 `llm_verifier` 调用不进入无密钥单元测试。
 
 ## 考虑过的替代方案
 
@@ -41,12 +43,15 @@ Status: implemented
 - **复用 worker 模型、端点、客户端或并发执行验证** — 拒绝，因为执行路由归用户所有，而验证测量需要独立配置的 DSV4 Flash 客户端与预算。
 - **根据验证器模型推断 DeepSeek 原生 transport** — 拒绝，因为兼容网关可以提供 DSV4 Flash，却不支持 DeepSeek reasoning 扩展；端点解析和显式 transport 配置负责请求行为。
 - **让验证器生成 Best-of-N 候选** — 拒绝，因为生成路由、重试和资源策略属于 Harness 编排；选择只接收已完成候选。
+- **增加专用 `verifier/mode` 事件** — 拒绝，因为配对命令生命周期已经持久化被接受的切换；第二条记录会让同一个事实拥有两个持久来源。
 - **让进度自动停止或重新采样** — 拒绝，因为测量与控制策略需要独立插件、配置和生命周期决策。
 - **在基础安装中强制 Python 验证** — 拒绝，因为普通 Harness 执行不能依赖评估器凭据、可用性或 Python 包。
+- **只使用进程级 verifier 开关** — 拒绝，因为交互式会话需要独立的运行时控制，而可变全局设置会让一个会话的更改影响所有并发会话。
 
 ## 后果
 
 - 验证通过组合显式启用；仅安装通用服务不会改变模型请求或普通 session 执行。
+- 全局启用的 verifier 默认应用于各会话，每个会话也可以持久地阻止或恢复仅属于自己的后续 verifier 工作。
 - 未来验证器实现可以替换提供商，而无需修改适配器、观察者或执行循环。
 - 候选生成和评估器开销可以独立配置与观测。启用验证不能改变 worker 模型、提供商、端点、客户端、并发或 rollout 策略。
 - 验证器进程在首次能力检测时发送一次简短请求；仅推理耗尽第一次预算时，才发送至多一次更大预算的重试。无凭据端点标识、模型、transport、固定 logprob 设置和探针预算相同的后续操作会复用成功检测结果。
@@ -58,5 +63,6 @@ Status: implemented
 - `llm_verifier` 0.2 没有独立最终评分调用，因此提供商使用最后一个 `track` 检查点。
 - 每个验证器端点都必须实现 DSV4 Flash 请求，并在每个请求的评分位置提供完整 chosen-token logprob 流与可用 A–T `top_logprobs`。响应级评分标签无法弥补 logprob 流中缺失的评分 span。仅推理耗尽探针预算时无法得出结论；正常完成并生成评分 token 后，才能确认评分位置 logprobs 缺失或格式错误。文本和中性分数 fallback 均被禁用；两类失败默认按失败开放处理，在严格直接调用中传播。
 - 实时测量信号只存在于当前进程，不从持久历史重放。
+- 直接 runtime 或 Best-of-N 调用方如果省略所属 Session，就只会获得进程级行为；会话感知编排必须传入 `VerifierDispatchContext.session`。
 - Worker 路径必须对配置的 subprocess 提供商可见；远程执行需要显式挂载。
 - 由评估器驱动的 Worker 停止、重试、反馈轮次、分支剪枝、rollout 分配以及 goal 或 Ralph 完成策略仍属于未来的独立消费者。对现有候选执行验证器侧分阶段重新评估由[自适应验证器选择](2026-08-18-adaptive-verifier-selection.md)负责。
